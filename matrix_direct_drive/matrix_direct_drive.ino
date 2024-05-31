@@ -23,6 +23,8 @@ void setup() {
   for (int i = 0; i < ANODE_COUNT; i++) {
     pinMode(i + FIRST_ANODE, OUTPUT);  
   }
+  DDRA = DDRB = DDRC = DDRL = 0xFF;
+  DDRD = 0b00001111;
 }
 
 byte matrix[MATRIX_SIZE];
@@ -38,6 +40,10 @@ void all_matrix() {
 
 void set_led(int x, int y, int z, bool value) {
   matrix[(z * 36) + (y * 6) + x] = value;
+}
+
+bool get_led(int x, int y, int z) {
+  return matrix[(z * 36) + (y * 6) + x];
 }
 
 void draw_line(int x1, int y1, int z1, int x2, int y2, int z2, bool value)
@@ -130,7 +136,7 @@ void draw_line(int x1, int y1, int z1, int x2, int y2, int z2, bool value)
 
 void idle_anim(unsigned long tick) {
   unsigned long animation_length = 15000;
-  unsigned long animation_count = 8;
+  unsigned long animation_count = 9;
   unsigned long total_length = animation_count * animation_length;
   unsigned long sequence = (tick % total_length) / animation_length;
   unsigned long anim_prog = tick % animation_length;
@@ -152,6 +158,25 @@ void idle_anim(unsigned long tick) {
               set_led(x,y,z,true);
           }
       break;
+    }
+    */
+    /*
+    case 8: {
+      for (int x = 0; x < 6; x++)
+        for (int y = 0; y < 6; y++)
+          for (int z = 0; z < 6; z++) {
+            if (z == 0 && (anim_prog % 5) == 1) {
+              if (random(0,20) == 0)
+                set_led(x,y,z,true);
+            }
+            if (z > 0 && (anim_prog % 15) == 0) {
+              if (get_led(x,y,z-1) && !get_led(x,y,z)) {
+                set_led(x,y,z-1, false);
+                set_led(x,y,z,true); 
+              }
+            }
+          }
+      break;  
     }
     */
     case 7: {
@@ -234,23 +259,59 @@ void idle_anim(unsigned long tick) {
   }
 }
 
+byte converted_matrix[6][5];
+
+void fill_bytes(byte *output, byte *input, int count) {
+  *output = 0;
+  for (int i = 0; i < count; i++) {
+    if (input[i])
+      *output |= (1 << i);
+  }
+}
+
+void convert_matrix() {
+  for (int layer = 0; layer < LAYER_COUNT; layer++) {
+    int a_off = layer * 36;
+    fill_bytes(&converted_matrix[layer][0], &matrix[a_off], 8);
+    fill_bytes(&converted_matrix[layer][1], &matrix[a_off + 8], 8);
+    fill_bytes(&converted_matrix[layer][2], &matrix[a_off + 16], 8);
+    fill_bytes(&converted_matrix[layer][3], &matrix[a_off + 24], 8);
+    fill_bytes(&converted_matrix[layer][4], &matrix[a_off + 32], 4);
+  }
+}
+
 void draw_matrix() {
+  convert_matrix();
   for (int layer = 0; layer < LAYER_COUNT; layer++) {
     digitalWrite(layer + FIRST_LAYER, HIGH);
     
+    /*
     for (int anode = 0; anode < ANODE_COUNT; anode++) {
         if (matrix[(layer * 36) + anode])
           digitalWrite(anode + FIRST_ANODE, HIGH);
-    }    
+    } 
+    */   
+    int a_off = layer * 36;
+    PORTA = converted_matrix[layer][0];
+    PORTB = converted_matrix[layer][1];
+    PORTC = converted_matrix[layer][2];
+    PORTL = converted_matrix[layer][3];
+    PORTD |= converted_matrix[layer][4] & 0b00001111;
     
     start_micros = micros();
     
     while (micros() - start_micros < LAYER_ON_TIME);
-    
+
+    PORTA = PORTB = PORTC = PORTL = 0;
+    PORTD &= 0b11110000;
+
+    /*
     for (int anode = 0; anode < ANODE_COUNT; anode++) {
          if (matrix[(layer * 36) + anode])
             digitalWrite(anode + FIRST_ANODE, LOW);
-    }    
+    } 
+    */
+       
     digitalWrite(layer + FIRST_LAYER, LOW);
   }  
 }
