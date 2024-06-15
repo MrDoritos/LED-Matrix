@@ -3,6 +3,7 @@ const int FIRST_ANODE = 14;
 const int LAYER_COUNT = 6;
 const int ANODE_COUNT = 36;
 const float LAYER_ON_TIME = 750.0f;
+//const float LAYER_ON_TIME = 3000.0f;
 const int MATRIX_SIZE = ANODE_COUNT * LAYER_COUNT;
 unsigned long current_millis;
 unsigned long start_micros;
