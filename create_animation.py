@@ -19,17 +19,22 @@ def get_led(x,y,z):
     return frame[(z * 36) + (y * 6) + x]
 
 def print_frame(periodp=period):
-    line = ''.join([get_char(i) for i in frame])
+    #line = ''.join([get_char(i) for i in frame])
+    line = ''
+    for i in frame:
+        line += get_char(frame[i])
 
     print(line)
     print(line, file=sys.stderr)
     print(periodp)
 
-def clear_frame():
+def clear_frame(ch=False):
     global frame
-    frame = [0] * 216
+    frame = []
+    for i in range(216):
+        frame.insert(i, ch)
 
-frame = [0] * 216
+clear_frame(False)
 
 def make_xywave(framenum, x, y, z):
     xval = np.sin((framenum / 3) + (x * (3.14 / 6))) * 3 + 2
@@ -114,6 +119,12 @@ def make_fireworks2():
                         set_led(x, y, z, True)
         print_frame(50)
 
+
+clear_frame(True)
+
+while True:
+    print_frame(4000)
+    sys.stdout.flush()
 
 #for i in range(1000):
 #    make_fireworks2()

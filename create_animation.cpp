@@ -44,6 +44,12 @@ void random_plot(int frame, int x, int y, int z) {
         set_led(x,y,z,true);
 }
 
+void fill(char c) {
+    for (int i = 0; i < 216; i++) {
+        frame[i] = c;
+    }
+}
+
 void rain(int frame, int x, int y, int z) {
     //spawn rain
     //50ms per frame, 20 frames per second
@@ -71,7 +77,7 @@ int main() {
                 }
             }
         }
-    
+        fill('#');
         //memset(&frame[0], 0, 216);
         print_frame();
     }
