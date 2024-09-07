@@ -1,22 +1,43 @@
-const int FIRST_LAYER = 2;
-const int FIRST_ANODE = 14;
-const int LAYER_COUNT = 6;
+const int FIRST_LAYER = 2; //first layer pin
+const int FIRST_ANODE = 14; //first anode pin
+const int LAYER_COUNT = 6; 
 const int ANODE_COUNT = 36;
-const float LAYER_ON_TIME = 750.0f;
-//const float LAYER_ON_TIME = 3000.0f;
 const int MATRIX_SIZE = ANODE_COUNT * LAYER_COUNT;
+const float DISPLAY_US = 1000.0f; //us for each display (1ms)
+const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; //us between each layer
+const int ANIM_MS = 25; //ms between animation updates
+const int ANIM_FRAME = 100; //ms between an animation frame
+const int SEQ_MS = 5000; //ms between each sequence
+const int REC_MS = 5000; //ms to wait for more serial data
 unsigned long current_millis;
 unsigned long start_micros;
-unsigned long last_frame;
+unsigned long last_frame = 0;
 unsigned long tick = 0;
 
+byte matrix[MATRIX_SIZE];
+byte matrix_buffer[256];
+byte converted_matrix[LAYER_COUNT][5];
+
+inline void clear_matrix() {
+    memset(&matrix, 0, MATRIX_SIZE);  
+}
+
+inline void all_matrix() {
+    memset(&matrix, 1, MATRIX_SIZE);  
+}
+
+inline void set_led(int x, int y, int z, bool value) {
+  matrix[(z * ANODE_COUNT) + (y * LAYER_COUNT) + x] = value;
+}
+
+inline bool get_led(int x, int y, int z) {
+  return matrix[(z * ANODE_COUNT) + (y * LAYER_COUNT) + x];
+}
+
 void setup() {
-  // put your setup code here, to run once:
   randomSeed(analogRead(0));
   Serial.begin(115200);
   Serial.setTimeout(10);
-  tick = 0;
-  last_frame = 0;
   start_micros = micros();
   for (int i = 0; i < LAYER_COUNT; i++) {
     pinMode(i + FIRST_LAYER, OUTPUT);
@@ -28,29 +49,9 @@ void setup() {
   DDRD = 0b00001111;
 }
 
-byte matrix[MATRIX_SIZE];
-byte matrix_buffer[256];
-
-void clear_matrix() {
-    memset(&matrix, 0, MATRIX_SIZE);  
-}
-
-void all_matrix() {
-    memset(&matrix, 1, MATRIX_SIZE);  
-}
-
-void set_led(int x, int y, int z, bool value) {
-  matrix[(z * 36) + (y * 6) + x] = value;
-}
-
-bool get_led(int x, int y, int z) {
-  return matrix[(z * 36) + (y * 6) + x];
-}
 
 void draw_line(int x1, int y1, int z1, int x2, int y2, int z2, bool value)
 {
-  //vector<vector<int> > ListOfPoints;
-  //ListOfPoints.push_back({ x1, y1, z1 });
   set_led(x1, y1, z1, value);
   int dx = abs(x2 - x1);
   int dy = abs(y2 - y1);
@@ -87,7 +88,6 @@ void draw_line(int x1, int y1, int z1, int x2, int y2, int z2, bool value)
       }
       p1 += 2 * dy;
       p2 += 2 * dz;
-      //ListOfPoints.push_back({ x1, y1, z1 });
       set_led(x1, y1, z1, value);
     }
  
@@ -108,7 +108,6 @@ void draw_line(int x1, int y1, int z1, int x2, int y2, int z2, bool value)
       }
       p1 += 2 * dx;
       p2 += 2 * dz;
-      //ListOfPoints.push_back({ x1, y1, z1 });
       set_led(x1, y1, z1, value);
     }
  
@@ -129,18 +128,19 @@ void draw_line(int x1, int y1, int z1, int x2, int y2, int z2, bool value)
       }
       p1 += 2 * dy;
       p2 += 2 * dx;
-     // ListOfPoints.push_back({ x1, y1, z1 });
      set_led(x1, y1, z1, value);
     }
   }
 }
 
 void idle_anim(unsigned long tick) {
-  unsigned long animation_length = 15000;
   unsigned long animation_count = 9;
-  unsigned long total_length = animation_count * animation_length;
-  unsigned long sequence = (tick % total_length) / animation_length;
-  unsigned long anim_prog = tick % animation_length;
+  unsigned long total_length = animation_count * SEQ_MS;
+  unsigned long sequence = (tick % total_length) / SEQ_MS;
+  unsigned long anim_prog = tick % SEQ_MS;
+
+  if (anim_prog % ANIM_FRAME > ANIM_MS * 2 - 1)
+     return;
 
   
   switch (sequence) {
@@ -182,19 +182,21 @@ void idle_anim(unsigned long tick) {
     */
     case 7: {
       clear_matrix();
-      int i = (anim_prog) / 100;
-      for (int x = 0; x < 6; x++) 
-        for (int y = 0; y < 6; y++)
+      int i = (anim_prog) / ANIM_FRAME;
+      for (int x = 0; x < 6; x++) { 
+        float vx = sinf((i / 3.0f) + (x * 3.14 / 6.0f)) * 3.0f + 2.0f;
+        for (int y = 0; y < 6; y++) {
           for (int z = 0; z < 6; z++) {
-            float val = (sinf((i / 3.0f) + (x * (3.14 / 6.0f))) * 3) + 2;
-            if (z > val && z < val + 1)
+            if (z > vx && z < vx + 1)
               set_led(x,y,z,true);
           }
+        }
+      }
       break;
     }
     case 6: { //sideways wave
       clear_matrix();
-      int i = (anim_prog % 1500) / 100;
+      int i = (anim_prog % (ANIM_FRAME * 15)) / ANIM_FRAME;
       for (int x = 0; x < 6; x++) 
         for (int y = 0; y < 6; y++)
           for (int z = 0; z < 6; z++) {
@@ -206,7 +208,7 @@ void idle_anim(unsigned long tick) {
     }
     case 5: { //columns
       clear_matrix();
-      int i = (anim_prog % 500) / 100;
+      int i = (anim_prog % (ANIM_FRAME * 5)) / ANIM_FRAME;
       draw_line(i, 0, 0, i, 0, 5, true);
       draw_line(5 - i, 5, 0, 5 - i, 5, 5, true);
       draw_line(0, 5 - i, 0, 0, 5 - i, 5, true);
@@ -214,7 +216,7 @@ void idle_anim(unsigned long tick) {
       break;
     }
     case 1: {
-      if (anim_prog < 100) {
+      if (anim_prog < ANIM_FRAME) {
         all_matrix(); 
       } else {
         set_led(random(0,6), random(0,6), random(0,6), false);
@@ -225,7 +227,7 @@ void idle_anim(unsigned long tick) {
       for (int x = 0; x < 6; x++)
         for (int y = 0; y < 6; y++)
           for (int z = 0; z < 6; z++) {
-            int off = anim_prog / 200;
+            int off = anim_prog / (ANIM_FRAME * 2);
             set_led(x,y,z, !((x+off)%2)&&!((y+off)%1)&&!((z+off)%1));
           }
       break;
@@ -234,7 +236,7 @@ void idle_anim(unsigned long tick) {
       for (int x = 0; x < 6; x++)
         for (int y = 0; y < 6; y++)
           for (int z = 0; z < 6; z++) {
-            int off = anim_prog / 200;
+            int off = anim_prog / (ANIM_FRAME * 2);
             set_led(x,y,z, !((x+off)%1)&&!((y+off)%2)&&!((z+off)%1));
           }
       break;
@@ -243,7 +245,7 @@ void idle_anim(unsigned long tick) {
       for (int x = 0; x < 6; x++)
         for (int y = 0; y < 6; y++)
           for (int z = 0; z < 6; z++) {
-            int off = anim_prog / 200;
+            int off = anim_prog / (ANIM_FRAME * 2);
             set_led(x,y,z, !((x+off)%1)&&!((y+off)%1)&&!((z+off)%2));
           }
       break;
@@ -252,7 +254,7 @@ void idle_anim(unsigned long tick) {
       for (int x = 0; x < 6; x++)
         for (int y = 0; y < 6; y++)
           for (int z = 0; z < 6; z++) {
-            int off = anim_prog / 200;
+            int off = anim_prog / (ANIM_FRAME * 2);
             set_led(x,y,z, !((x+off)%2)&&!((y+off)%2)&&!((z+off)%2));
           }
       break;
@@ -260,21 +262,18 @@ void idle_anim(unsigned long tick) {
   }
 }
 
-byte converted_matrix[6][5];
-
-void fill_bytes(byte *output, byte *input, int count) {
+inline void fill_bytes(byte *output, byte *input, int count) {
   *output = 0;
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < count; i++)
     if (input[i])
       *output |= (1 << i);
-  }
 }
 
 void convert_matrix() {
   for (int layer = 0; layer < LAYER_COUNT; layer++) {
-    int a_off = layer * 36;
-    fill_bytes(&converted_matrix[layer][0], &matrix[a_off], 8);
-    fill_bytes(&converted_matrix[layer][1], &matrix[a_off + 8], 8);
+    int a_off = layer * ANODE_COUNT;
+    fill_bytes(&converted_matrix[layer][0], &matrix[a_off     ], 8);
+    fill_bytes(&converted_matrix[layer][1], &matrix[a_off + 8 ], 8);
     fill_bytes(&converted_matrix[layer][2], &matrix[a_off + 16], 8);
     fill_bytes(&converted_matrix[layer][3], &matrix[a_off + 24], 8);
     fill_bytes(&converted_matrix[layer][4], &matrix[a_off + 32], 4);
@@ -282,65 +281,56 @@ void convert_matrix() {
 }
 
 void draw_matrix() {
-  convert_matrix();
   for (int layer = 0; layer < LAYER_COUNT; layer++) {
     digitalWrite(layer + FIRST_LAYER, HIGH);
+       
+    PORTA =  converted_matrix[layer][0];
+    PORTB =  converted_matrix[layer][1];
+    PORTC =  converted_matrix[layer][2];
+    PORTL =  converted_matrix[layer][3];
+    PORTD |= converted_matrix[layer][4];
     
-    /*
-    for (int anode = 0; anode < ANODE_COUNT; anode++) {
-        if (matrix[(layer * 36) + anode])
-          digitalWrite(anode + FIRST_ANODE, HIGH);
-    } 
-    */   
-    int a_off = layer * 36;
-    PORTA = converted_matrix[layer][0];
-    PORTB = converted_matrix[layer][1];
-    PORTC = converted_matrix[layer][2];
-    PORTL = converted_matrix[layer][3];
-    PORTD |= converted_matrix[layer][4] & 0b00001111;
-    
-    start_micros = micros();
-    
-    while (micros() - start_micros < LAYER_ON_TIME);
+    //start_micros = micros();
+    //while (micros() - start_micros < LAYER_ON_TIME);
+    delayMicroseconds(LAYER_ON_TIME);
 
     PORTA = PORTB = PORTC = PORTL = 0;
     PORTD &= 0b11110000;
-
-    /*
-    for (int anode = 0; anode < ANODE_COUNT; anode++) {
-         if (matrix[(layer * 36) + anode])
-            digitalWrite(anode + FIRST_ANODE, LOW);
-    } 
-    */
-       
+   
     digitalWrite(layer + FIRST_LAYER, LOW);
   }  
 }
 
 void loop() {
   long _last_recv, _millis;
+  int matrix_count = 27;
   clear_matrix();
 
-  _last_recv = -5000;
+  _last_recv = -REC_MS;
+  last_frame = 0;
   
   while (true) {  
-    if (Serial.available() >= 27) {
-      Serial.readBytes(&matrix_buffer[0], 27);
+    if (Serial.available() >= matrix_count) {
+      Serial.readBytes(&matrix_buffer[0], matrix_count);
      
-      for (int i = 0; i < 27; i++) {
+      for (int i = 0; i < matrix_count; i++) {
         for (int j = 0; j < 8; j++) {
           int bitIndex = i * 8 + j;
           matrix[bitIndex] = bitRead(matrix_buffer[i], 7 - j);
         }
       }
+
       
+      convert_matrix();
       _last_recv = millis();
-    }
-    else 
-    if (millis() - _last_recv > 5000) { //play idle animation after 5 seconds
-      if (millis() - last_frame > 40) { //update animation every 40 ms
-        idle_anim(millis() + 14000);
-        last_frame = millis();
+    } else {
+      if (millis() - _last_recv > REC_MS) { //play idle animation after 5 seconds
+        if (millis() - last_frame > ANIM_MS) { //update animation every ANIM_MS
+          idle_anim(millis());
+          
+          convert_matrix();
+          last_frame = millis();
+        }
       }
     }
 
