@@ -25,7 +25,7 @@ def print_frame(periodp=period):
         line += get_char(frame[i])
 
     print(line)
-    print(line, file=sys.stderr)
+    #print(line, file=sys.stderr)
     print(periodp)
 
 def clear_frame(ch=False):
