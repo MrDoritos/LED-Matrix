@@ -3,7 +3,7 @@ const int FIRST_ANODE = 14; //first anode pin
 const int LAYER_COUNT = 6; 
 const int ANODE_COUNT = 36;
 const int MATRIX_SIZE = ANODE_COUNT * LAYER_COUNT;
-const float DISPLAY_US = 1000.0f; //us for each display (1ms)
+const float DISPLAY_US = 4000.0f; //us for each display (4ms)
 const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; //us between each layer
 const int ANIM_MS = 25; //ms between animation updates
 const int ANIM_FRAME = 100; //ms between an animation frame
@@ -312,14 +312,14 @@ void loop() {
   while (true) {  
     if (Serial.available() >= matrix_count) {
       Serial.readBytes(&matrix_buffer[0], matrix_count);
-     
+      
       for (int i = 0; i < matrix_count; i++) {
         for (int j = 0; j < 8; j++) {
           int bitIndex = i * 8 + j;
-          matrix[bitIndex] = bitRead(matrix_buffer[i], 7 - j);
+          //matrix[bitIndex] = bitRead(matrix_buffer[i], 7 - j);
+          matrix[bitIndex] = (matrix_buffer[i] >> (7 - j)) & 1;
         }
       }
-
       
       convert_matrix();
       _last_recv = millis();
