@@ -123,7 +123,9 @@ def make_fireworks2():
 clear_frame(True)
 
 while True:
-    print_frame(4000)
+    #print_frame(4000)
+    #make_anim(make_fireworks)
+    make_fireworks2()
     sys.stdout.flush()
 
 #for i in range(1000):
