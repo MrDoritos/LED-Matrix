@@ -7,8 +7,8 @@ const float DISPLAY_US = 4000.0f; //us for each display (4ms)
 const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; //us between each layer
 const int ANIM_MS = 25; //ms between animation updates
 const int ANIM_FRAME = 100; //ms between an animation frame
-const int SEQ_MS = 5000; //ms between each sequence
-const int REC_MS = 5000; //ms to wait for more serial data
+const int SEQ_MS = 7000; //ms between each sequence
+const int REC_MS = 2000; //ms to wait for more serial data
 unsigned long current_millis;
 unsigned long start_micros;
 unsigned long last_frame = 0;
@@ -142,6 +142,8 @@ void idle_anim(unsigned long tick) {
   if (anim_prog % ANIM_FRAME > ANIM_MS * 2 - 1)
      return;
 
+  unsigned long total_frames = SEQ_MS / ANIM_FRAME;
+  unsigned long frames = anim_prog / ANIM_FRAME;
   
   switch (sequence) {
     /*
@@ -219,7 +221,20 @@ void idle_anim(unsigned long tick) {
       if (anim_prog < ANIM_FRAME) {
         all_matrix(); 
       } else {
-        set_led(random(0,6), random(0,6), random(0,6), false);
+        int area = 6 * 6 * 6;
+        float fact = area / total_frames;
+        float cnt = 0;
+        while (true) {
+          int x = random(0, 6);
+          int y = random(0, 6);
+          int z = random(0, 6);
+          if (get_led(x,y,z)) {
+            cnt += 1;
+            set_led(x,y,z,0);
+          }
+          if (cnt > fact)
+            break;
+        }
       }
       break;
     }
@@ -324,7 +339,7 @@ void loop() {
       convert_matrix();
       _last_recv = millis();
     } else {
-      if (millis() - _last_recv > REC_MS) { //play idle animation after 5 seconds
+      if (millis() - _last_recv > REC_MS) { //play idle animation after REC_MS
         if (millis() - last_frame > ANIM_MS) { //update animation every ANIM_MS
           idle_anim(millis());
           

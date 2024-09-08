@@ -45,13 +45,13 @@ def next_frame(blocking=True):
                 return True
             else:
                 sleep_period = sleep_duration - elapsed_time
-                print("Elapsed time:", str(elapsed_time) + "s")
-                print("Sleep for:", str(sleep_period) + "s")
+                #print("Elapsed time:", str(elapsed_time) + "s")
+                #print("Sleep for:", str(sleep_period) + "s")
                 time.sleep(sleep_period)
             
         line = stream.readline()
         
-        if not line:
+        if not line or len(line) == 0:
             return False
 
         if line.strip().isdigit():
@@ -71,7 +71,7 @@ def next_frame(blocking=True):
     if len(character_data) < 216:
         return False
 
-    print("Next frame")
+    #print("Next render frame")
 
     boolean_values = []
     boolean_values.extend([c == '#' for c in character_data])
