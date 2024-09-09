@@ -94,11 +94,11 @@ def make_fireworks2():
     seed = int((time.clock_gettime_ns(0)) % 10000)
     #print(seed)
     np.random.seed(seed)
-    start_x = np.random.randint(0, 6)
-    start_y = np.random.randint(0, 6)
-    end_x = np.random.randint(2, 4)
-    end_y = np.random.randint(2, 4)
-    end_z = 2.5
+    start_x = np.random.uniform(0, 6)
+    start_y = np.random.uniform(0, 6)
+    end_x = np.random.uniform(2, 4)
+    end_y = np.random.uniform(2, 4)
+    end_z = np.random.uniform(2,3)
     start_z = 0.0
 
     print (start_x, start_y, end_x, end_y, file=sys.stderr)
@@ -135,9 +135,9 @@ def make_fireworks2():
 
     clear_frame()
     #end_z = -some ((1-1.5)**2) + some
-    max_h = 6.0
+    max_h = height
     x_off = 1.0
-    x_int = np.random.uniform(1.0, 1.8)
+    x_int = 1.5#np.random.uniform(1.2, 1.6)
     para_h = (max_h-end_z)/np.sqrt(abs(x_off-x_int))
     z_off = para_h
     para_s = steps
@@ -145,7 +145,7 @@ def make_fireworks2():
     for i in range(para_s):
         #if np.random.randint(0, 4) == 0:
         #if i < steps / 10:
-            #clear_frame()
+        clear_frame()
         _i = i / (para_s - 1.1)
         _x = _i * x_int
         x = xiter[i]
@@ -153,8 +153,8 @@ def make_fireworks2():
         
         z = height - ((-z_off * ((x_off - _x) ** 2)) + z_off)
 
-        print(_i, _x, z_off, x_off, x, y, z, file=sys.stderr)
-        if not (x < 0 or x > 5 or y < 0 or y > 5 or z < 0 or z > 5):
+        #print(_i, _x, z_off, x_off, x, y, z, file=sys.stderr)
+        if not (x < 0 or x > 5.9 or y < 0 or y > 5.9 or z < 0 or z > 5.9):
             set_led(int(x), int(y), int(z), True)
         print_frame(int(1000 / para_s))
 
