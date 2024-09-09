@@ -106,7 +106,7 @@ def make_fireworks2():
     #set_led(end_x, end_y, 1, True)
     #print_frame(1000)
 
-    steps = 20
+    steps = 40
     per = 1000/60
     xiter = np.linspace(start_x, end_x, steps)
     yiter = np.linspace(start_y, end_y, steps)
@@ -115,27 +115,58 @@ def make_fireworks2():
 
     clear_frame()
 
-    #Trail .4s
-    for i in range(steps):
-        clear_frame()
-        set_led(int(xiter[i]), int(yiter[i]), int(height - (i * (height / steps))), True)
-        print_frame(int(400 / steps))
+    if False:
+        #Trail .4s
+        for i in range(steps):
+            clear_frame()
+            set_led(int(xiter[i]), int(yiter[i]), int(height - (i * (height / steps))), True)
+            print_frame(int(400 / steps))
 
-    #Fall to center .7s
-    for i in range(steps):
-        clear_frame()
-        z = int(end_z - ((steps - i) * (end_z / steps)))
-        #print(z, file=sys.stderr)
-        set_led(end_x, end_y, z, True)
-        print_frame(int(700 / steps))
+        #Fall to center .7s
+        for i in range(steps):
+            clear_frame()
+            z = int(end_z - ((steps - i) * (end_z / steps)))
+            #print(z, file=sys.stderr)
+            set_led(end_x, end_y, z, True)
+            print_frame(int(700 / steps))
 
 
-    #Explosion 1s
-    explosion = 60
-    explosion_t = 1000
+    #Parabola test
+
+    clear_frame()
+    #end_z = -some ((1-1.5)**2) + some
+    max_h = 6.0
+    x_off = 1.0
+    x_int = np.random.uniform(1.0, 1.8)
+    para_h = (max_h-end_z)/np.sqrt(abs(x_off-x_int))
+    z_off = para_h
+    para_s = steps
+    
+    for i in range(para_s):
+        #if np.random.randint(0, 4) == 0:
+        #if i < steps / 10:
+            #clear_frame()
+        _i = i / (para_s - 1.1)
+        _x = _i * x_int
+        x = xiter[i]
+        y = yiter[i]
+        
+        z = height - ((-z_off * ((x_off - _x) ** 2)) + z_off)
+
+        print(_i, _x, z_off, x_off, x, y, z, file=sys.stderr)
+        if not (x < 0 or x > 5 or y < 0 or y > 5 or z < 0 or z > 5):
+            set_led(int(x), int(y), int(z), True)
+        print_frame(int(1000 / para_s))
+
     radius = np.random.randint(6, 10) #radius
     print("Radius:", radius, file=sys.stderr)
     cubed_dist = 0.0
+
+    #Explosion 60 steps in 1s
+    explosion = np.random.randint(50, 70)
+    explosion_t = np.random.randint(800, 1200)
+    fall_dist = 1
+    fall_start = 1
     for i in range(explosion):
         clear_frame()
         e_i = i / explosion
@@ -143,7 +174,7 @@ def make_fireworks2():
         for x in range(0,6):
             for y in range(0,6):
                 for z in range(0,6):
-                    z_fall = 1 - (e_i * 1)
+                    z_fall = fall_start - (e_i * fall_dist)
                     cubed_dist = square(x - end_x, y - end_y, z - end_z + z_fall)
                     if cubed_dist <= ((radius * 0.7) + (e_i * radius * 0.3)):
                         set_led(int(x), int(y), int(z), True)
@@ -152,10 +183,13 @@ def make_fireworks2():
     #Dwell .3s
     print_frame(300)
 
-    #Flicker 40 times in 1.5s
-    flicker = 40
-    flicker_t = 1500
-    decay_f = 1.5
+    #Flicker 40 times in 1.5s, decay 1.5
+    flicker = np.random.randint(30, 50)
+    flicker_t = np.random.randint(1250, 1750)
+    #decay_f = 1.5
+    decay_f = np.random.uniform(.5, 3)
+    fall_start = 0
+    fall_dist = 2
     for i in range(flicker):
         clear_frame()
         n_i = i / flicker
@@ -163,7 +197,7 @@ def make_fireworks2():
         for x in range(0,6):
             for y in range(0,6):
                 for z in range(0,6):
-                    z_fall = 0 - (n_i * 2)
+                    z_fall = fall_start - (n_i * fall_dist)
                     cubed_dist = square(x - end_x, y - end_y, z - end_z + z_fall)
                     if cubed_dist <= radius:
                         set_led(int(x), int(y), int(z), np.random.randint(0, i + flicker) > n_i * flicker * decay_f)
