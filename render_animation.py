@@ -52,6 +52,7 @@ def next_frame(blocking=True):
         line = stream.readline()
         
         if not line or len(line) == 0:
+            print("No line")
             return False
 
         if line.strip().isdigit():
@@ -115,24 +116,30 @@ def safe_close():
 
 def view_front():
     gluPerspective(90, 1, 0.1, 100)
-    z = 2.5
-    x = 8
+    x = 2.5-5.5
     y = 2.5
-    gluLookAt(x, y, z, x-1, y, z, 0.0, 0.0, -1.0)
+    z = 2.5
+    gluLookAt(x, y, z, x+1, y, z, 0.0, 0.0, -1.0)
     
+def view_right():
+    gluPerspective(90, 1, 0.1, 100)
+    x = 2.5
+    y = 2.5+5.5
+    z = 2.5
+    gluLookAt(x, y, z, x, y-1, z, 0.0, 0.0, -1.0)
 
 def view_ortho():
     gluPerspective(45, 1, 0.1, 100)
-    z = 2.5
-    x = 13
+    x = 2.5-10.5
     y = 2.5
-    gluLookAt(x, y, z, x-1, y, z, 0.0, 0.0, -1.0)
+    z = 2.5
+    gluLookAt(x, y, z, x+1, y, z, 0.0, 0.0, -1.0)
 
 def set_view():
     #glViewport(0, 0, 700, 700)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    view_front()
+    view_right()
     glMatrixMode(GL_MODELVIEW)
 
 def glut_close():
