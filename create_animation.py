@@ -83,6 +83,41 @@ def make_anim(func):
                     func(i, x, y, z)
         print_frame()
 
+def shift(x,y,z):
+    global frame
+    for _x in range(6):
+        for _y in range(6):
+            for _z in range(6):
+                if _x + x < 6 and _y + y < 6 and _z + z < 6 and \
+                   _x + x > -1 and _y + y > -1 and _z + z > -1:
+                    if get_led(_x + x, _y + y, _z + z) and \
+                       not get_led(_x, _y, _z):
+                        set_led(_x + x, _y + y, _z + z, False)
+                        set_led(_x, _y, _z, True)
+                    
+                else:
+                    set_led(_x, _y, _z, False)
+
+def make_rain(seconds=4,fps=60,inv_rate=100):
+    #seconds = 4
+    #fps = 60
+    frames = seconds * fps
+    r = inv_rate
+    for i in range(frames):
+        for x in range(6):
+            for y in range(6):
+                if np.random.randint(0, r) == 0:
+                    set_led(x, y, 0, True)
+        
+        if i % 4 == 0:
+            for _i in range(len(frame)):
+                i = len(frame) - _i - 36 - 1
+                if frame[i] and i > -1 and not frame[i + 36]:
+                    frame[i] = False
+                    frame[i + 36] = True
+
+        print_frame(int(seconds*1000/frames))
+
 #make_anim(make_fireworks)
 
 def square(x:float, y:float, z:float):
@@ -234,7 +269,11 @@ while True:
     #    for y in range(6):
     #        set_led(x, 0, y, True)
     #print_frame(1000)
-    make_fireworks2()
+    #make_fireworks2()
+    make_rain(1, 60, 100)
+    #shift(1,0,0)
+    #print_frame(100)
+    
     sys.stdout.flush()
 
 #for i in range(1000):

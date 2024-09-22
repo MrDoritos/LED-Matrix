@@ -231,8 +231,10 @@ void idle_anim(unsigned long tick) {
           if (get_led(x,y,z)) {
             cnt += 1;
             set_led(x,y,z,0);
+          } else {
+            area--;
           }
-          if (cnt > fact)
+          if (cnt > fact || area < 0)
             break;
         }
       }
