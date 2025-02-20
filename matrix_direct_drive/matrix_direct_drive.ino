@@ -3,16 +3,22 @@ const int FIRST_ANODE = 14; //first anode pin
 const int LAYER_COUNT = 6; 
 const int ANODE_COUNT = 36;
 const int MATRIX_SIZE = ANODE_COUNT * LAYER_COUNT;
-const float DISPLAY_US = 4000.0f; //us for each display (4ms)
-const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; //us between each layer
+const float DISPLAY_US = 1000.0f; // us for each display (1ms)
+const float CLOCK_FREQ = 16000000.0f; // 16 MHz
+const float CLOCK_PERIOD = 1000000.0f / CLOCK_FREQ; // 0.0625 us
+const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; // us between each layer (666.66us)
+const bool TIMER1_ENABLE = true;
+const unsigned int TIMER1_PRESCALER = 0b101; // clock/1024
+const unsigned long LAYER_ON_TIME_CYCLES = LAYER_ON_TIME / CLOCK_PERIOD; // us delay / clock period in us (4k cycles)
+const unsigned int DISPLAY_PERIOD_TIMER = ((DISPLAY_US * 1.5f) / CLOCK_PERIOD) / 1024.0f; // 33% of the time nothing is drawn, the cpu is free (23)
 const int ANIM_MS = 25; //ms between animation updates
 const int ANIM_FRAME = 100; //ms between an animation frame
 const int SEQ_MS = 7000; //ms between each sequence
 const int REC_MS = 2000; //ms to wait for more serial data
-unsigned long current_millis;
-unsigned long start_micros;
-unsigned long last_frame = 0;
-unsigned long tick = 0;
+
+volatile unsigned long start_micros;
+volatile unsigned long last_frame = 0;
+volatile unsigned long tick = 0;
 
 byte matrix[MATRIX_SIZE];
 byte matrix_buffer[256];
@@ -38,6 +44,9 @@ void setup() {
   randomSeed(analogRead(0));
   Serial.begin(115200);
   Serial.setTimeout(10);
+  //Serial.println(LAYER_ON_TIME_CYCLES);
+  //Serial.println(DISPLAY_PERIOD_TIMER);
+  //Serial.println(CLOCK_PERIOD * 1000.0f);
   start_micros = micros();
   for (int i = 0; i < LAYER_COUNT; i++) {
     pinMode(i + FIRST_LAYER, OUTPUT);
@@ -307,41 +316,59 @@ void draw_matrix() {
     PORTL =  converted_matrix[layer][3];
     PORTD |= converted_matrix[layer][4];
     
-    //start_micros = micros();
-    //while (micros() - start_micros < LAYER_ON_TIME);
     delayMicroseconds(LAYER_ON_TIME);
 
     PORTA = PORTB = PORTC = PORTL = 0;
     PORTD &= 0b11110000;
    
     digitalWrite(layer + FIRST_LAYER, LOW);
-  }  
+  }
+}
+
+void set_draw_interrupt() {
+  cli();
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCCR1B |= TIMER1_PRESCALER;
+  TCCR1B |= (1 << WGM12); // reset on compare
+  TIMSK1 |= (1 << OCIE1A); // enable interrupt compare
+  OCR1A = DISPLAY_PERIOD_TIMER;
+  TCNT1 = 0;
+  sei();
+}
+
+ISR(TIMER1_COMPA_vect) {
+  sei(); // allow UART processing in higher priority ISR
+  draw_matrix();
+  //delayMicroseconds(LAYER_ON_TIME * 6);
 }
 
 void loop() {
-  long _last_recv, _millis;
+  if (TIMER1_ENABLE)
+    set_draw_interrupt();
+  
+  volatile long _last_recv, _millis;
   int matrix_count = 27;
   clear_matrix();
 
-  _last_recv = -REC_MS;
-  last_frame = 0;
-  
-  while (true) {  
+  _last_recv = millis()-1000;
+  last_frame = millis()-ANIM_MS;
+
+  while (true) {   
     if (Serial.available() >= matrix_count) {
-      Serial.readBytes(&matrix_buffer[0], matrix_count);
-      
-      for (int i = 0; i < matrix_count; i++) {
-        for (int j = 0; j < 8; j++) {
-          int bitIndex = i * 8 + j;
-          //matrix[bitIndex] = bitRead(matrix_buffer[i], 7 - j);
-          matrix[bitIndex] = (matrix_buffer[i] >> (7 - j)) & 1;
+        Serial.readBytes(&matrix_buffer[0], matrix_count);
+        
+        for (int i = 0; i < matrix_count; i++) {
+          for (int j = 0; j < 8; j++) {
+            int bitIndex = i * 8 + j;
+            matrix[bitIndex] = (matrix_buffer[i] >> (7 - j)) & 1;
+          }
         }
-      }
-      
-      convert_matrix();
-      _last_recv = millis();
+
+        convert_matrix();
+        _last_recv = millis();
     } else {
-      if (millis() - _last_recv > REC_MS) { //play idle animation after REC_MS
+      if (millis() - _last_recv > REC_MS) { //play idle animation after REC_MS          
         if (millis() - last_frame > ANIM_MS) { //update animation every ANIM_MS
           idle_anim(millis());
           
@@ -351,6 +378,7 @@ void loop() {
       }
     }
 
-    draw_matrix();
+    if (!TIMER1_ENABLE)
+      draw_matrix();
   }
 }

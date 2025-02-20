@@ -74,12 +74,11 @@ def send_over_serial(serial_port='/dev/ttyACM0', baud_rate=115200):
     try:
         print("Create port")
         ser = serial.Serial(serial_port, baud_rate, timeout=0)
-        #time.sleep(1)
+        time.sleep(1)
         ser.timeout = 0.1
         ser.write_timeout = 0.1
         print("Wait")
-        ser.read()
-        #time.sleep(1)
+        print(ser.readall())
 
         print("Ready")
         while next_frame():
