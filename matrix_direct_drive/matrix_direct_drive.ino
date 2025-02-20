@@ -154,7 +154,8 @@ void idle_anim(unsigned long tick) {
 
   unsigned long total_frames = SEQ_MS / ANIM_FRAME;
   unsigned long frames = anim_prog / ANIM_FRAME;
-  
+
+  sequence = 7;
   switch (sequence) {
     /*
     case 0:
@@ -307,10 +308,32 @@ void convert_matrix() {
   }
 }
 
+static uint8_t current_layer = 0;
+
+inline void set_layer(uint8_t layer, uint8_t value) {
+  struct pinInfo {
+    volatile uint8_t *reg;
+    uint8_t mask;
+  } const static pins[] = {
+    {&PORTE,0b11101111}, //4
+    {&PORTE,0b11011111}, //5
+    {&PORTG,0b11011111}, //5
+    {&PORTE,0b11110111}, //3
+    {&PORTH,0b11110111}, //3
+    {&PORTH,0b11101111}  //4
+  };
+
+  if (value) {
+    *(pins[layer].reg) |= ~(pins[layer].mask);
+  } else {
+    *(pins[layer].reg) &= (pins[layer].mask);
+  }
+}
+
 void draw_matrix() {
   for (int layer = 0; layer < LAYER_COUNT; layer++) {
-    digitalWrite(layer + FIRST_LAYER, HIGH);
-       
+    set_layer(layer, 1);
+
     PORTA =  converted_matrix[layer][0];
     PORTB =  converted_matrix[layer][1];
     PORTC =  converted_matrix[layer][2];
@@ -322,17 +345,14 @@ void draw_matrix() {
     PORTA = PORTB = PORTC = PORTL = 0;
     PORTD &= 0b11110000;
    
-    digitalWrite(layer + FIRST_LAYER, LOW);
+    set_layer(layer, 0);
   }
 }
 
-static int current_layer = 0;
-
 void layer_drawer() {
-  int prev = current_layer;
-  current_layer = (prev + 1) % LAYER_COUNT;
+  set_layer(current_layer, 0);
 
-  digitalWrite(FIRST_LAYER + prev, LOW);
+  current_layer = (current_layer + 1) % LAYER_COUNT;
 
   PORTA =  converted_matrix[current_layer][0];
   PORTB =  converted_matrix[current_layer][1];
@@ -340,7 +360,7 @@ void layer_drawer() {
   PORTL =  converted_matrix[current_layer][3];
   PORTD =  converted_matrix[current_layer][4];
 
-  digitalWrite(FIRST_LAYER + current_layer, HIGH);
+  set_layer(current_layer, 1);
 }
 
 void set_draw_interrupt() {
