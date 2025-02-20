@@ -3,14 +3,15 @@ const int FIRST_ANODE = 14; //first anode pin
 const int LAYER_COUNT = 6; 
 const int ANODE_COUNT = 36;
 const int MATRIX_SIZE = ANODE_COUNT * LAYER_COUNT;
-const float DISPLAY_US = 1000.0f; // us for each display (1ms)
+const float DISPLAY_US = 2000.0f; // us for each display (2ms)
 const float CLOCK_FREQ = 16000000.0f; // 16 MHz
 const float CLOCK_PERIOD = 1000000.0f / CLOCK_FREQ; // 0.0625 us
-const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; // us between each layer (666.66us)
+const float LAYER_ON_TIME = DISPLAY_US / LAYER_COUNT; // us between each layer (333.33us)
 const bool TIMER1_ENABLE = true;
 const unsigned int TIMER1_PRESCALER = 0b101; // clock/1024
-const unsigned long LAYER_ON_TIME_CYCLES = LAYER_ON_TIME / CLOCK_PERIOD; // us delay / clock period in us (4k cycles)
-const unsigned int DISPLAY_PERIOD_TIMER = ((DISPLAY_US * 1.5f) / CLOCK_PERIOD) / 1024.0f; // 33% of the time nothing is drawn, the cpu is free (23)
+const unsigned long LAYER_ON_TIME_CYCLES = LAYER_ON_TIME / CLOCK_PERIOD; // us delay / clock period in us (2k cycles)
+const unsigned int DISPLAY_PERIOD_TIMER = ((DISPLAY_US * 1.5f) / CLOCK_PERIOD) / 1024.0f; // 33% of the time nothing is drawn, the cpu is free (30)
+const unsigned int LAYER_PERIOD_TIMER = LAYER_ON_TIME / CLOCK_PERIOD / 1024.0f; // 5
 const int ANIM_MS = 25; //ms between animation updates
 const int ANIM_FRAME = 100; //ms between an animation frame
 const int SEQ_MS = 7000; //ms between each sequence
@@ -325,6 +326,23 @@ void draw_matrix() {
   }
 }
 
+static int current_layer = 0;
+
+void layer_drawer() {
+  int prev = current_layer;
+  current_layer = (prev + 1) % LAYER_COUNT;
+
+  digitalWrite(FIRST_LAYER + prev, LOW);
+
+  PORTA =  converted_matrix[current_layer][0];
+  PORTB =  converted_matrix[current_layer][1];
+  PORTC =  converted_matrix[current_layer][2];
+  PORTL =  converted_matrix[current_layer][3];
+  PORTD =  converted_matrix[current_layer][4];
+
+  digitalWrite(FIRST_LAYER + current_layer, HIGH);
+}
+
 void set_draw_interrupt() {
   cli();
   TCCR1A = 0;
@@ -332,27 +350,25 @@ void set_draw_interrupt() {
   TCCR1B |= TIMER1_PRESCALER;
   TCCR1B |= (1 << WGM12); // reset on compare
   TIMSK1 |= (1 << OCIE1A); // enable interrupt compare
-  OCR1A = DISPLAY_PERIOD_TIMER;
+  OCR1A = LAYER_PERIOD_TIMER;
   TCNT1 = 0;
   sei();
 }
 
 ISR(TIMER1_COMPA_vect) {
-  sei(); // allow UART processing in higher priority ISR
-  draw_matrix();
-  //delayMicroseconds(LAYER_ON_TIME * 6);
+  layer_drawer();
 }
 
-void loop() {
-  if (TIMER1_ENABLE)
-    set_draw_interrupt();
-  
+void loop() {  
   volatile long _last_recv, _millis;
   int matrix_count = 27;
   clear_matrix();
 
   _last_recv = millis()-1000;
   last_frame = millis()-ANIM_MS;
+
+  if (TIMER1_ENABLE)
+    set_draw_interrupt();
 
   while (true) {   
     if (Serial.available() >= matrix_count) {
